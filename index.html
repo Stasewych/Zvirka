@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Just Solution | Звірка надходжень</title>
+<link rel="icon" type="image/png" href="https://i.ibb.co/tM58LBQy/2026-03-19-11-32-51-removebg-preview.png">
+<script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#f7f7f8;--card:#fff;--border:#e5e5e7;--text:#1a1a1e;--text-sec:#6e6e73;
+  --accent:#1a1a1e;--accent-hover:#333;--success:#1b8a4a;--success-bg:#e8f5ee;
+  --error:#d03535;--error-bg:#fdf0f0;--warning:#c5820f;--warning-bg:#fef9ec;
+  --radius:12px;--radius-sm:8px;--shadow:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+  --shadow-lg:0 10px 40px rgba(0,0,0,.08);--font:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif;
+  --transition:all .25s cubic-bezier(.4,0,.2,1);
+}
+html{font-size:16px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;line-height:1.5}
+
+/* Layout */
+.app-shell{max-width:720px;margin:0 auto;padding:24px 20px 80px}
+header{display:flex;align-items:center;justify-content:space-between;padding:20px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}
+.logo{display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--text)}
+.logo-mark{width:40px;height:40px}
+.logo-text{font-size:11px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;line-height:1.3}
+.logo-text span{display:block}
+
+/* Page title */
+.page-title{margin-bottom:8px;font-size:28px;font-weight:800;letter-spacing:-.5px;line-height:1.2}
+.page-subtitle{font-size:14px;color:var(--text-sec);margin-bottom:40px;font-weight:400}
+
+/* Steps */
+.step{margin-bottom:32px;opacity:1;transform:translateY(0);animation:fadeUp .5s cubic-bezier(.4,0,.2,1) both}
+.step:nth-child(2){animation-delay:.06s}
+.step:nth-child(3){animation-delay:.12s}
+.step:nth-child(4){animation-delay:.18s}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+
+.step-label{display:flex;align-items:center;gap:10px;margin-bottom:14px;font-size:11px;font-weight:700;letter-spacing:1.8px;text-transform:uppercase;color:var(--text-sec)}
+.step-num{width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;letter-spacing:0;flex-shrink:0}
+
+/* Upload zones */
+.upload-zone{background:var(--card);border:1.5px dashed var(--border);border-radius:var(--radius);padding:28px 24px;cursor:pointer;transition:var(--transition);position:relative;overflow:hidden}
+.upload-zone:hover{border-color:#b0b0b5;background:#fafafa}
+.upload-zone.dragover{border-color:var(--accent);background:#f5f5f7;border-style:solid}
+.upload-zone.has-file{border-color:var(--success);border-style:solid;background:var(--success-bg)}
+.upload-zone.has-error{border-color:var(--error);border-style:solid;background:var(--error-bg)}
+.upload-zone input[type="file"]{display:none}
+
+.upload-inner{display:flex;align-items:center;gap:16px}
+.upload-icon{width:40px;height:40px;border-radius:10px;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:var(--transition)}
+.upload-zone.has-file .upload-icon{background:var(--success);color:#fff}
+.upload-zone.has-error .upload-icon{background:var(--error);color:#fff}
+.upload-icon svg{width:20px;height:20px;stroke:var(--text-sec);stroke-width:1.5;fill:none}
+.upload-zone.has-file .upload-icon svg,.upload-zone.has-error .upload-icon svg{stroke:#fff}
+
+.upload-text-main{font-size:14px;font-weight:600;color:var(--text);margin-bottom:2px}
+.upload-text-sub{font-size:12.5px;color:var(--text-sec);font-weight:400}
+.upload-zone.has-file .upload-text-main{color:var(--success)}
+.upload-zone.has-error .upload-text-main{color:var(--error)}
+.upload-zone.has-error .upload-text-sub{color:var(--error)}
+
+.file-remove{position:absolute;top:12px;right:12px;width:28px;height:28px;border-radius:50%;border:none;background:rgba(0,0,0,.06);cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;transition:var(--transition)}
+.upload-zone.has-file .file-remove,.upload-zone.has-error .file-remove{opacity:1}
+.file-remove:hover{background:rgba(0,0,0,.12)}
+.file-remove svg{width:14px;height:14px;stroke:var(--text-sec);stroke-width:2;fill:none}
+
+/* Toggle */
+.toggle-card{background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius);padding:22px 24px}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.toggle-info{flex:1}
+.toggle-title{font-size:14px;font-weight:600;margin-bottom:2px}
+.toggle-desc{font-size:12.5px;color:var(--text-sec)}
+
+.toggle-switch{position:relative;width:48px;height:28px;flex-shrink:0}
+.toggle-switch input{opacity:0;width:0;height:0;position:absolute}
+.toggle-track{position:absolute;inset:0;border-radius:14px;background:#d1d1d6;cursor:pointer;transition:var(--transition)}
+.toggle-track::after{content:'';position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.15);transition:var(--transition)}
+.toggle-switch input:checked+.toggle-track{background:var(--accent)}
+.toggle-switch input:checked+.toggle-track::after{transform:translateX(20px)}
+
+.toggle-state{margin-top:10px;font-size:12px;color:var(--text-sec);padding:8px 12px;background:var(--bg);border-radius:var(--radius-sm);text-align:center;transition:var(--transition)}
+
+/* Action button */
+.action-btn{width:100%;padding:18px;border:none;border-radius:var(--radius);font-family:var(--font);font-size:14px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:var(--transition);margin-top:8px;position:relative;overflow:hidden}
+.action-btn.primary{background:var(--accent);color:#fff}
+.action-btn.primary:hover:not(:disabled){background:var(--accent-hover);transform:translateY(-1px);box-shadow:var(--shadow-lg)}
+.action-btn.primary:active:not(:disabled){transform:translateY(0)}
+.action-btn:disabled{opacity:.4;cursor:not-allowed;transform:none!important}
+.action-btn.success{background:var(--success);color:#fff}
+.action-btn.success:hover{background:#167a3f}
+
+/* Progress overlay */
+.progress-overlay{position:fixed;inset:0;background:rgba(247,247,248,.92);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:100;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s ease}
+.progress-overlay.active{opacity:1;pointer-events:all}
+.progress-card{background:var(--card);border-radius:16px;padding:48px 40px;box-shadow:var(--shadow-lg);text-align:center;max-width:420px;width:90%;transform:scale(.95);transition:transform .35s cubic-bezier(.4,0,.2,1)}
+.progress-overlay.active .progress-card{transform:scale(1)}
+
+.progress-spinner{width:56px;height:56px;margin:0 auto 24px;position:relative}
+.progress-spinner svg{width:56px;height:56px;animation:spin 1.2s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.progress-spinner circle{stroke:var(--accent);stroke-width:3;fill:none;stroke-dasharray:120;stroke-dashoffset:40;stroke-linecap:round}
+
+.progress-stage{font-size:15px;font-weight:600;margin-bottom:6px;min-height:23px}
+.progress-detail{font-size:13px;color:var(--text-sec);margin-bottom:24px;min-height:20px}
+
+.progress-bar-track{width:100%;height:6px;background:var(--bg);border-radius:3px;overflow:hidden}
+.progress-bar-fill{height:100%;background:var(--accent);border-radius:3px;width:0%;transition:width .6s cubic-bezier(.4,0,.2,1)}
+.progress-pct{font-size:12px;color:var(--text-sec);margin-top:10px;font-weight:600;font-variant-numeric:tabular-nums}
+
+/* Results */
+.results-card{background:var(--card);border:1.5px solid var(--success);border-radius:var(--radius);padding:28px 24px;margin-bottom:24px;animation:fadeUp .4s ease both}
+.results-title{display:flex;align-items:center;gap:10px;font-size:16px;font-weight:700;margin-bottom:16px;color:var(--success)}
+.results-title svg{width:22px;height:22px;stroke:var(--success);stroke-width:2;fill:none}
+.results-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.result-item{padding:14px 16px;background:var(--bg);border-radius:var(--radius-sm)}
+.result-item .label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--text-sec);margin-bottom:4px}
+.result-item .value{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
+
+/* Error toast */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--card);border:1.5px solid var(--error);border-radius:var(--radius);padding:16px 20px;box-shadow:var(--shadow-lg);z-index:200;display:flex;align-items:flex-start;gap:12px;max-width:500px;width:90%;transition:transform .35s cubic-bezier(.4,0,.2,1);opacity:0}
+.toast.visible{transform:translateX(-50%) translateY(0);opacity:1}
+.toast-icon{width:20px;height:20px;stroke:var(--error);stroke-width:2;fill:none;flex-shrink:0;margin-top:1px}
+.toast-msg{font-size:13px;line-height:1.5;color:var(--text)}
+.toast-msg strong{display:block;font-size:14px;margin-bottom:2px}
+.toast-close{position:absolute;top:8px;right:8px;width:24px;height:24px;border:none;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:var(--transition)}
+.toast-close:hover{background:rgba(0,0,0,.06)}
+.toast-close svg{width:14px;height:14px;stroke:var(--text-sec);stroke-width:2;fill:none}
+
+/* Footer */
+footer{text-align:center;padding:32px 0 0;border-top:1px solid var(--border);margin-top:48px;font-size:11px;color:var(--text-sec);letter-spacing:.5px}
+footer strong{font-weight:700;letter-spacing:1px}
+
+/* Accessibility */
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+@media(max-width:520px){
+  .app-shell{padding:16px 16px 60px}
+  .page-title{font-size:24px}
+  .results-grid{grid-template-columns:1fr}
+  .progress-card{padding:36px 24px}
+}
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <header>
+    <a href="#" class="logo" onclick="return false">
+      <img src="https://i.ibb.co/f37HLbR/2026-03-19-11-34-54-removebg-preview.png" alt="Just Solution" style="height:80px;width:auto">
+    </a>
+  </header>
+
+  <h1 class="page-title">Звірка надходжень</h1>
+  <p class="page-subtitle">Автоматизована звірка платежів за виконавчими провадженнями</p>
+
+  <!-- Step 1: VP File -->
+  <div class="step">
+    <div class="step-label"><span class="step-num">1</span> Файл реєстру ВП</div>
+    <div class="upload-zone" id="zone-vp" tabindex="0" role="button" aria-label="Завантажити файл реєстру ВП">
+      <input type="file" id="file-vp" accept=".xlsx,.xls">
+      <div class="upload-inner">
+        <div class="upload-icon">
+          <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
+        </div>
+        <div>
+          <div class="upload-text-main" id="vp-text-main">Оберіть реєстр ВП</div>
+          <div class="upload-text-sub" id="vp-text-sub">Excel файл з реєстру АСВП (.xlsx або .xls)</div>
+        </div>
+      </div>
+      <button class="file-remove" id="vp-remove" aria-label="Видалити файл" style="display:none"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+  </div>
+
+  <!-- Step 2: Deposit File -->
+  <div class="step">
+    <div class="step-label"><span class="step-num">2</span> Книга депозитних сум</div>
+    <div class="upload-zone" id="zone-dep" tabindex="0" role="button" aria-label="Завантажити книгу депозитних сум">
+      <input type="file" id="file-dep" accept=".xlsx,.xls">
+      <div class="upload-inner">
+        <div class="upload-icon">
+          <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
+        </div>
+        <div>
+          <div class="upload-text-main" id="dep-text-main">Оберіть книгу депозитних сум</div>
+          <div class="upload-text-sub" id="dep-text-sub">Місячний звіт із депозитного рахунку (.xlsx або .xls)</div>
+        </div>
+      </div>
+      <button class="file-remove" id="dep-remove" aria-label="Видалити файл" style="display:none"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+  </div>
+
+  <!-- Step 3: Options -->
+  <div class="step">
+    <div class="step-label"><span class="step-num">3</span> Налаштування</div>
+    <div class="toggle-card">
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <div class="toggle-title">Сумувати надходження</div>
+          <div class="toggle-desc">Декілька надходжень за одним ВП</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="toggle-sum">
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+      <div class="toggle-state" id="toggle-state-text">Режим: окремий рядок для кожного надходження</div>
+      <div style="height:1px;background:var(--border);margin:18px 0"></div>
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <div class="toggle-title">Усі ВП з реєстру</div>
+          <div class="toggle-desc">Включити боржників без надходжень (з нулями)</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="toggle-all" checked>
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+      <div class="toggle-state" id="toggle-all-text">Режим: всі ВП, без надходжень — 0</div>
+    </div>
+  </div>
+
+  <!-- Step 4: Action -->
+  <div class="step">
+    <div class="step-label"><span class="step-num">4</span> Обробка</div>
+    <button class="action-btn primary" id="btn-process" disabled>Виконати обробку</button>
+  </div>
+
+  <!-- Results (hidden initially) -->
+  <div id="results-section" style="display:none">
+    <div class="results-card">
+      <div class="results-title">
+        <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        Обробку завершено
+      </div>
+      <div class="results-grid">
+        <div class="result-item"><div class="label">ВП у реєстрі</div><div class="value" id="r-total">—</div></div>
+        <div class="result-item"><div class="label">З надходженнями</div><div class="value" id="r-matched">—</div></div>
+        <div class="result-item"><div class="label">Рядків у звіті</div><div class="value" id="r-rows">—</div></div>
+        <div class="result-item"><div class="label">Загальна сума</div><div class="value" id="r-amount">—</div></div>
+      </div>
+    </div>
+    <button class="action-btn success" id="btn-download">Завантажити результат (.xlsx)</button>
+  </div>
+
+  <footer>Розроблено <strong>JUST SOLUTION</strong> · Legal Technology</footer>
+</div>
+
+<!-- Progress Overlay -->
+<div class="progress-overlay" id="progress-overlay">
+  <div class="progress-card">
+    <div class="progress-spinner">
+      <svg viewBox="0 0 56 56"><circle cx="28" cy="28" r="24"/></svg>
+    </div>
+    <div class="progress-stage" id="progress-stage">Підготовка...</div>
+    <div class="progress-detail" id="progress-detail"></div>
+    <div class="progress-bar-track"><div class="progress-bar-fill" id="progress-fill"></div></div>
+    <div class="progress-pct" id="progress-pct">0%</div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast">
+  <svg class="toast-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+  <div class="toast-msg" id="toast-msg"></div>
+  <button class="toast-close" onclick="hideToast()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+</div>
+
+<script>
+/* ──────────────────── State ──────────────────── */
+let vpFile = null, depFile = null, resultWB = null;
+
+/* ──────────────────── DOM refs ──────────────────── */
+const $ = id => document.getElementById(id);
+const zoneVP = $('zone-vp'), zoneDep = $('zone-dep');
+const fileVP = $('file-vp'), fileDep = $('file-dep');
+const btnProcess = $('btn-process'), btnDownload = $('btn-download');
+const toggleSum = $('toggle-sum'), toggleText = $('toggle-state-text');
+const toggleAll = $('toggle-all'), toggleAllText = $('toggle-all-text');
+
+/* ──────────────────── Helpers ──────────────────── */
+function formatBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+  return (b / 1048576).toFixed(1) + ' MB';
+}
+function formatUAH(n) {
+  return new Intl.NumberFormat('uk-UA', { style: 'currency', currency: 'UAH', minimumFractionDigits: 2 }).format(n);
+}
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+function isExcel(name) { return /\.(xlsx|xls)$/i.test(name); }
+function cleanStr(v) { return v == null ? '' : String(v).trim(); }
+
+/* Parse Excel date — handles both serial numbers and strings */
+function parseExcelDate(v) {
+  if (v == null || v === '') return '';
+  if (typeof v === 'number') {
+    try {
+      const d = XLSX.SSF.parse_date_code(v);
+      if (d) return String(d.d).padStart(2,'0') + '.' + String(d.m).padStart(2,'0') + '.' + d.y;
+    } catch(e) {}
+  }
+  return String(v);
+}
+
+/* Parse number robustly */
+function parseNum(v) {
+  if (v == null || v === '') return 0;
+  if (typeof v === 'number') return v;
+  const s = String(v).replace(/\s/g, '').replace(',', '.');
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+
+/* ──────────────────── Toast ──────────────────── */
+let toastTimer = null;
+function showToast(title, msg, duration = 6000) {
+  const el = $('toast');
+  $('toast-msg').innerHTML = '<strong>' + title + '</strong>' + msg;
+  el.classList.add('visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(hideToast, duration);
+}
+function hideToast() { $('toast').classList.remove('visible'); }
+
+/* ──────────────────── Progress ──────────────────── */
+function showProgress() { $('progress-overlay').classList.add('active'); }
+function hideProgress() { $('progress-overlay').classList.remove('active'); }
+async function setProgress(pct, stage, detail) {
+  $('progress-fill').style.width = pct + '%';
+  $('progress-pct').textContent = pct + '%';
+  if (stage) $('progress-stage').textContent = stage;
+  if (detail !== undefined) $('progress-detail').textContent = detail;
+  await delay(pct < 100 ? 350 : 200);
+}
+
+/* ──────────────────── Upload Logic ──────────────────── */
+function setupUploadZone(zone, input, removeBtn, textMain, textSub, onFile, onClear) {
+  const mainEl = $(textMain), subEl = $(textSub), rmBtn = $(removeBtn);
+
+  zone.addEventListener('click', e => {
+    if (e.target.closest('.file-remove')) return;
+    input.click();
+  });
+  zone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
+
+  ['dragenter', 'dragover'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.add('dragover'); }));
+  ['dragleave', 'drop'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.remove('dragover'); }));
+
+  zone.addEventListener('drop', e => {
+    const f = e.dataTransfer.files[0];
+    if (f) handleFile(f);
+  });
+
+  input.addEventListener('change', () => { if (input.files[0]) handleFile(input.files[0]); });
+
+  rmBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    zone.classList.remove('has-file', 'has-error');
+    mainEl.textContent = mainEl.dataset.default;
+    subEl.textContent = subEl.dataset.default;
+    rmBtn.style.display = 'none';
+    input.value = '';
+    onClear();
+    updateProcessBtn();
+    hideResults();
+  });
+
+  mainEl.dataset.default = mainEl.textContent;
+  subEl.dataset.default = subEl.textContent;
+
+  function handleFile(f) {
+    if (!isExcel(f.name)) {
+      zone.classList.remove('has-file');
+      zone.classList.add('has-error');
+      mainEl.textContent = 'Невірний формат файлу';
+      subEl.textContent = 'Підтримуються лише .xlsx та .xls файли';
+      rmBtn.style.display = '';
+      onClear();
+      showToast('Невірний формат', 'Файл «' + f.name + '» не є Excel-файлом. Оберіть файл з розширенням .xlsx або .xls.');
+      updateProcessBtn();
+      return;
+    }
+    if (f.size > 50 * 1048576) {
+      zone.classList.remove('has-file');
+      zone.classList.add('has-error');
+      mainEl.textContent = 'Файл занадто великий';
+      subEl.textContent = 'Максимальний розмір — 50 MB';
+      rmBtn.style.display = '';
+      onClear();
+      showToast('Завеликий файл', 'Розмір файлу «' + f.name + '» — ' + formatBytes(f.size) + '. Максимум — 50 MB.');
+      updateProcessBtn();
+      return;
+    }
+    zone.classList.remove('has-error');
+    zone.classList.add('has-file');
+    mainEl.textContent = f.name;
+    subEl.textContent = formatBytes(f.size);
+    rmBtn.style.display = '';
+    onFile(f);
+    updateProcessBtn();
+    hideResults();
+  }
+}
+
+setupUploadZone(zoneVP, fileVP, 'vp-remove', 'vp-text-main', 'vp-text-sub',
+  f => { vpFile = f; }, () => { vpFile = null; });
+setupUploadZone(zoneDep, fileDep, 'dep-remove', 'dep-text-main', 'dep-text-sub',
+  f => { depFile = f; }, () => { depFile = null; });
+
+function updateProcessBtn() { btnProcess.disabled = !(vpFile && depFile); }
+
+/* ──────────────────── Toggle ──────────────────── */
+toggleSum.addEventListener('change', () => {
+  toggleText.textContent = toggleSum.checked
+    ? 'Режим: сума всіх надходжень в одному рядку'
+    : 'Режим: окремий рядок для кожного надходження';
+  hideResults();
+});
+toggleAll.addEventListener('change', () => {
+  toggleAllText.textContent = toggleAll.checked
+    ? 'Режим: всі ВП, без надходжень — 0'
+    : 'Режим: тільки ВП зі збігами в депозитній книзі';
+  hideResults();
+});
+
+/* ──────────────────── Results ──────────────────── */
+function hideResults() {
+  $('results-section').style.display = 'none';
+  resultWB = null;
+}
+
+/* ──────────────────── Core Processing ──────────────────── */
+async function readFileAsArrayBuffer(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = () => reject(new Error('Не вдалося прочитати файл «' + file.name + '»'));
+    r.readAsArrayBuffer(file);
+  });
+}
+
+btnProcess.addEventListener('click', async () => {
+  if (!vpFile || !depFile) return;
+  resultWB = null;
+  hideResults();
+  showProgress();
+
+  try {
+    /* ── Stage 1: Read files ── */
+    await setProgress(5, 'Зчитування файлів...', vpFile.name);
+    let vpBuf, depBuf;
+    try { vpBuf = await readFileAsArrayBuffer(vpFile); } catch(e) { throw new Error('Не вдалося зчитати файл реєстру ВП. Переконайтесь, що файл не пошкоджений.'); }
+    await setProgress(15, 'Зчитування файлів...', depFile.name);
+    try { depBuf = await readFileAsArrayBuffer(depFile); } catch(e) { throw new Error('Не вдалося зчитати книгу депозитних сум. Переконайтесь, що файл не пошкоджений.'); }
+
+    /* ── Stage 2: Parse VP ── */
+    await setProgress(25, 'Аналіз реєстру ВП...', 'Розбір структури файлу');
+    let vpWB, vpData;
+    try { vpWB = XLSX.read(vpBuf, { type: 'array', cellDates: false }); } catch(e) { throw new Error('Файл реєстру ВП пошкоджений або має невідомий формат. Спробуйте зберегти його заново в Excel.'); }
+
+    const vpSheet = vpWB.Sheets[vpWB.SheetNames[0]];
+    if (!vpSheet) throw new Error('Файл реєстру ВП не містить жодного аркушу.');
+    vpData = XLSX.utils.sheet_to_json(vpSheet, { header: 1, defval: '' });
+
+    if (vpData.length < 3) throw new Error('Файл реєстру ВП порожній або має менше 3 рядків. Очікується: рядок 1 — заголовок, рядок 2 — назви колонок, рядок 3+ — дані.');
+
+    /* Find header row and map columns by name */
+    function findColIndex(headers, keywords) {
+      for (let i = 0; i < headers.length; i++) {
+        const h = cleanStr(headers[i]).toLowerCase();
+        if (keywords.some(kw => h.includes(kw.toLowerCase()))) return i;
+      }
+      return -1;
+    }
+
+    /* Detect header row in VP file (search first 5 rows for "АСВП") */
+    let vpHeaderRow = -1;
+    for (let r = 0; r < Math.min(vpData.length, 5); r++) {
+      if (vpData[r]?.some(c => cleanStr(c).includes('АСВП'))) { vpHeaderRow = r; break; }
+    }
+    if (vpHeaderRow === -1) throw new Error('У файлі реєстру ВП не знайдено рядок заголовків (шукали "АСВП"). Перевірте структуру файлу.');
+
+    const vpH = vpData[vpHeaderRow].map(c => cleanStr(c));
+    const vCol = {
+      vpNum:    findColIndex(vpH, ['АСВП']),
+      vd:       findColIndex(vpH, ['№ ВД']),
+      stanVP:   findColIndex(vpH, ['Стан ВП']),
+      stanVD:   findColIndex(vpH, ['Стан ВД']),
+      dateOpen: findColIndex(vpH, ['Дата відкриття']),
+      amount:   findColIndex(vpH, ['Сума коштів до стягнення']),
+      debtor:   findColIndex(vpH, ['Боржник']),
+      creditor: findColIndex(vpH, ['Стягувач'])
+    };
+
+    if (vCol.vpNum === -1) throw new Error('У файлі реєстру ВП не знайдено колонку "№ АСВП". Знайдені заголовки: ' + vpH.filter(Boolean).join(', '));
+
+    const vpRecords = [];
+    for (let i = vpHeaderRow + 1; i < vpData.length; i++) {
+      const row = vpData[i];
+      const vpNum = cleanStr(row[vCol.vpNum]);
+      if (!vpNum || !/^\d+$/.test(vpNum)) continue;
+      vpRecords.push({
+        vpNum,
+        vd:       vCol.vd >= 0 ? cleanStr(row[vCol.vd]) : '',
+        stanVP:   vCol.stanVP >= 0 ? cleanStr(row[vCol.stanVP]) : '',
+        stanVD:   vCol.stanVD >= 0 ? cleanStr(row[vCol.stanVD]) : '',
+        dateOpen: vCol.dateOpen >= 0 ? parseExcelDate(row[vCol.dateOpen]) : '',
+        amount:   vCol.amount >= 0 ? row[vCol.amount] : '',
+        debtor:   vCol.debtor >= 0 ? cleanStr(row[vCol.debtor]) : '',
+        creditor: vCol.creditor >= 0 ? cleanStr(row[vCol.creditor]) : ''
+      });
+    }
+
+    if (vpRecords.length === 0) throw new Error('У файлі реєстру ВП не знайдено жодного запису. Перевірте, що номер АСВП — числовий і міститься у відповідній колонці.');
+
+    await setProgress(40, 'Аналіз реєстру ВП...', 'Знайдено ' + vpRecords.length + ' виконавчих проваджень');
+
+    /* ── Stage 3: Parse Deposit ── */
+    await setProgress(50, 'Обробка книги депозитних сум...', 'Пошук аркушу з даними');
+    let depWB, depSheet, depData;
+    try { depWB = XLSX.read(depBuf, { type: 'array', cellDates: false }); } catch(e) { throw new Error('Файл книги депозитних сум пошкоджений або має невідомий формат. Спробуйте зберегти його заново в Excel.'); }
+
+    /* Find the data sheet — look for "Page2" or the sheet with "Номер виконавчого провадження" */
+    depSheet = depWB.Sheets['Page2'];
+    if (!depSheet) {
+      for (const name of depWB.SheetNames) {
+        const d = XLSX.utils.sheet_to_json(depWB.Sheets[name], { header: 1, defval: '' });
+        for (let r = 0; r < Math.min(d.length, 10); r++) {
+          const row = d[r];
+          for (let c = 0; c < row.length; c++) {
+            if (String(row[c]).includes('виконавчого провадження')) { depSheet = depWB.Sheets[name]; break; }
+          }
+          if (depSheet) break;
+        }
+        if (depSheet) break;
+      }
+    }
+    if (!depSheet) throw new Error('У файлі книги депозитних сум не знайдено аркушу з даними (Page2). Переконайтесь, що завантажуєте правильний файл.');
+
+    depData = XLSX.utils.sheet_to_json(depSheet, { header: 1, defval: '' });
+
+    /* Find deposit header row (search for "виконавчого провадження") */
+    let depHeaderRow = -1;
+    for (let r = 0; r < Math.min(depData.length, 10); r++) {
+      if (depData[r]?.some(c => cleanStr(c).toLowerCase().includes('виконавчого провадження'))) { depHeaderRow = r; break; }
+    }
+    if (depHeaderRow === -1) throw new Error('У книзі депозитних сум не знайдено рядок заголовків (шукали "виконавчого провадження").');
+
+    const depH = depData[depHeaderRow].map(c => cleanStr(c));
+    const dCol = {
+      vpNum: findColIndex(depH, ['виконавчого провадження']),
+      date:  findColIndex(depH, ['Дата зарахування']),
+      sumJ:  findColIndex(depH, ['надійшла в поточному']),
+      sumI:  findColIndex(depH, ['Залишок коштів на початок'])
+    };
+
+    if (dCol.vpNum === -1) throw new Error('У книзі депозитних сум не знайдено колонку "Номер виконавчого провадження". Знайдені заголовки: ' + depH.filter(Boolean).join(', '));
+
+    /* Determine first data row: skip header row + possible sub-header rows with "1","2","3"... */
+    let depStartRow = depHeaderRow + 1;
+    for (let i = depStartRow; i < Math.min(depData.length, depHeaderRow + 5); i++) {
+      const vpVal = cleanStr(depData[i]?.[dCol.vpNum]);
+      /* Skip rows that are sub-headers (numbered "2") or section labels */
+      if (/^\d{7,}$/.test(vpVal)) { depStartRow = i; break; }
+      depStartRow = i + 1;
+    }
+
+    /* Build deposit map: vpNum → [{date, amount}, ...] */
+    const depMap = new Map();
+    let totalDepEntries = 0;
+    const useSumCol = dCol.sumJ >= 0 ? dCol.sumJ : dCol.sumI;
+    if (useSumCol < 0) throw new Error('У книзі депозитних сум не знайдено колонку із сумою надходжень.');
+
+    for (let i = depStartRow; i < depData.length; i++) {
+      const row = depData[i];
+      const vpNum = cleanStr(row[dCol.vpNum]);
+      if (!vpNum || !/^\d+$/.test(vpNum)) continue;
+      const date = dCol.date >= 0 ? parseExcelDate(row[dCol.date]) : '';
+      const sum = parseNum(row[useSumCol]);
+      if (sum === 0) continue; // немає надходження — пропускаємо
+      if (!depMap.has(vpNum)) depMap.set(vpNum, []);
+      depMap.get(vpNum).push({ date, sum });
+      totalDepEntries++;
+    }
+
+    await setProgress(65, 'Обробка книги депозитних сум...', 'Оброблено ' + totalDepEntries + ' записів надходжень');
+    if (depMap.size === 0 && !toggleAll.checked) throw new Error('У книзі депозитних сум не знайдено жодного запису з номером ВП. Перевірте, що номери ВП містяться в колонці C, а дані починаються з 5-го рядка.');
+
+    /* ── Stage 4: Match ── */
+    await setProgress(75, 'Зіставлення записів...', 'Пошук збігів за номером ВП');
+    const sumMode = toggleSum.checked;
+    const allMode = toggleAll.checked;
+    const outputRows = [];
+    let matchedCount = 0, totalDeposits = 0, totalAmount = 0;
+
+    for (const vp of vpRecords) {
+      const deposits = depMap.get(vp.vpNum);
+      const hasDeposits = deposits && deposits.length > 0;
+
+      if (hasDeposits) {
+        matchedCount++;
+        if (sumMode) {
+          let s = 0;
+          for (const d of deposits) s += d.sum;
+          totalDeposits += deposits.length;
+          totalAmount += s;
+          outputRows.push([vp.vpNum, vp.vd, vp.stanVP, vp.stanVD, vp.dateOpen, vp.amount, vp.debtor, vp.creditor, deposits.length, s]);
+        } else {
+          for (const d of deposits) {
+            totalDeposits++;
+            totalAmount += d.sum;
+            outputRows.push([vp.vpNum, vp.vd, vp.stanVP, vp.stanVD, vp.dateOpen, vp.amount, vp.debtor, vp.creditor, d.date, d.sum]);
+          }
+        }
+      } else if (allMode) {
+        /* ВП без надходжень — записуємо з нулями */
+        if (sumMode) {
+          outputRows.push([vp.vpNum, vp.vd, vp.stanVP, vp.stanVD, vp.dateOpen, vp.amount, vp.debtor, vp.creditor, 0, 0]);
+        } else {
+          outputRows.push([vp.vpNum, vp.vd, vp.stanVP, vp.stanVD, vp.dateOpen, vp.amount, vp.debtor, vp.creditor, '', 0]);
+        }
+      }
+    }
+
+    await setProgress(85, 'Зіставлення записів...', 'Знайдено ' + matchedCount + ' збігів');
+
+    if (matchedCount === 0 && !allMode) throw new Error('Жодне виконавче провадження з реєстру не знайдено в книзі депозитних сум. Перевірте, що обидва файли належать до одного періоду та виконавця.');
+    if (outputRows.length === 0) throw new Error('Результат порожній. Перевірте файли.');
+
+    /* ── Stage 5: Generate output ── */
+    await setProgress(92, 'Формування звіту...', 'Створення Excel-файлу');
+
+    const headers = sumMode
+      ? ['№ АСВП', '№ ВД', 'Стан ВП', 'Стан ВД', 'Дата відкриття ВП', 'Сума до стягнення, грн.', 'Боржник', 'Стягувач', 'К-сть надходжень', 'Сума надходжень, грн.']
+      : ['№ АСВП', '№ ВД', 'Стан ВП', 'Стан ВД', 'Дата відкриття ВП', 'Сума до стягнення, грн.', 'Боржник', 'Стягувач', 'Дата зарахування', 'Сума надходження, грн.'];
+
+    const wsData = [headers, ...outputRows];
+    const outSheet = XLSX.utils.aoa_to_sheet(wsData);
+
+    /* Column widths */
+    outSheet['!cols'] = [
+      { wch: 14 }, { wch: 10 }, { wch: 14 }, { wch: 26 }, { wch: 16 },
+      { wch: 20 }, { wch: 32 }, { wch: 40 }, { wch: sumMode ? 16 : 16 }, { wch: 22 }
+    ];
+
+    resultWB = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(resultWB, outSheet, 'Звірка');
+
+    await setProgress(100, 'Готово!', '');
+
+    /* Show results */
+    $('r-total').textContent = vpRecords.length;
+    $('r-matched').textContent = matchedCount;
+    $('r-rows').textContent = outputRows.length;
+    $('r-amount').textContent = formatUAH(totalAmount);
+    $('results-section').style.display = '';
+
+    await delay(600);
+    hideProgress();
+
+  } catch (err) {
+    hideProgress();
+    showToast('Помилка обробки', err.message, 10000);
+  }
+});
+
+/* ──────────────────── Download ──────────────────── */
+btnDownload.addEventListener('click', () => {
+  if (!resultWB) return;
+  const today = new Date();
+  const ds = [
+    String(today.getDate()).padStart(2,'0'),
+    String(today.getMonth()+1).padStart(2,'0'),
+    today.getFullYear()
+  ].join('_');
+  XLSX.writeFile(resultWB, 'Zvirka_' + ds + '.xlsx');
+});
+</script>
+</body>
+</html>
