@@ -109,6 +109,8 @@ header{display:flex;align-items:center;padding:20px 0 32px;border-bottom:1px sol
 .toggle-switch input:checked+.toggle-track::after{transform:translateX(20px)}
 .toggle-state{margin-top:10px;font-size:12px;color:var(--text-sec);padding:8px 12px;background:var(--bg);border-radius:var(--radius-sm);text-align:center}
 .toggle-divider{height:1px;background:var(--border);margin:20px 0}
+.toggle-switch input:disabled+.toggle-track{opacity:.4;cursor:not-allowed}
+.toggle-row.muted .toggle-title,.toggle-row.muted .toggle-desc{opacity:.5}
 
 /* ── Action Button ── */
 .action-btn{width:100%;padding:18px;border:none;border-radius:var(--radius);font-family:var(--font);font-size:14px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:var(--transition);margin-top:8px}
@@ -245,6 +247,20 @@ footer strong{font-weight:700;letter-spacing:1px}
         </label>
       </div>
       <div class="toggle-state" id="toggle-expand-text">Режим: зведене — один рядок (члени згорнуті)</div>
+
+      <div class="toggle-divider"></div>
+
+      <div class="toggle-row" id="zero-members-row">
+        <div class="toggle-info">
+          <div class="toggle-title">Показувати нульових членів ЗВП</div>
+          <div class="toggle-desc">Члени зведеного без надходжень (з нулями). Діє лише в розгорнутому режимі</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="toggle-zero-members" checked>
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+      <div class="toggle-state" id="toggle-zero-members-text">Режим: нульові члени показуються</div>
     </div>
   </div>
 
@@ -314,6 +330,7 @@ const zoneVP = $('zone-vp'), fileVP = $('file-vp');
 const btnProcess = $('btn-process'), btnDownload = $('btn-download');
 const toggleAll = $('toggle-all'), toggleAllText = $('toggle-all-text');
 const toggleExpand = $('toggle-expand'), toggleExpandText = $('toggle-expand-text');
+const toggleZeroMembers = $('toggle-zero-members'), toggleZeroMembersText = $('toggle-zero-members-text');
 
 /* ──────────────────── Helpers ──────────────────── */
 function formatBytes(b) {
@@ -559,12 +576,29 @@ toggleAll.addEventListener('change', () => {
   hideResults();
 });
 
+// Тогл "нульові члени" діє лише в розгорнутому режимі — синхронізуємо доступність
+function syncZeroMembersToggle() {
+  const on = toggleExpand.checked;
+  toggleZeroMembers.disabled = !on;
+  $('zero-members-row').classList.toggle('muted', !on);
+}
+
 toggleExpand.addEventListener('change', () => {
   toggleExpandText.textContent = toggleExpand.checked
     ? 'Режим: члени ЗВП — окремими рядками'
     : 'Режим: зведене — один рядок (члени згорнуті)';
+  syncZeroMembersToggle();
   hideResults();
 });
+
+toggleZeroMembers.addEventListener('change', () => {
+  toggleZeroMembersText.textContent = toggleZeroMembers.checked
+    ? 'Режим: нульові члени показуються'
+    : 'Режим: нульові члени приховані';
+  hideResults();
+});
+
+syncZeroMembersToggle();   // початковий стан (розгортання вимкнено → тогл неактивний)
 
 /* ──────────────────── Results ──────────────────── */
 function hideResults() { $('results-section').style.display = 'none'; resultWB = null; }
@@ -818,6 +852,7 @@ btnProcess.addEventListener('click', async () => {
        В обох режимах сумарний підсумок однаковий і без подвійного рахунку. */
     const allMode = toggleAll.checked;
     const expandZvp = toggleExpand.checked;
+    const showZeroMembers = toggleZeroMembers.checked;   // діє лише в розгорнутому режимі
 
     // Згрупувати членів за номером батьківського ЗВП
     const zvpToMembers = new Map();
@@ -855,15 +890,49 @@ btnProcess.addEventListener('click', async () => {
         const members = zvpToMembers.get(vp.zvp);
 
         if (expandZvp) {
-          /* ── РОЗГОРНУТО: рядок прямих надходжень на ЗВП + лише ті члени,
-             що реально отримали кошти. Нульові члени НЕ виводимо — кошти
-             зведеного вже відображені рядком "ЗВП (пряме)" або на конкретних
-             членах, а пачка нульових членів лише засмічує звіт. */
+          /* ── РОЗГОРНУТО ──
+             • рядок "ЗВП (пряме)" — кошти, що надійшли на номер ЗВП;
+             • рядки членів: завжди ті, що отримали кошти; нульові члени —
+               лише якщо тогл "Показувати нульових членів ЗВП" увімкнено
+               (showZeroMembers, дефолт ON);
+             • ЗВП зовсім без надходжень: при "Усі ВП" або показуємо нульових
+               членів (showZeroMembers), або одним зведеним нульовим рядком. */
           const directSums = monthSumsFor(vp.zvp);
           const directTotal = totalOf(directSums);
-          let groupHasRow = false;
+          const memberSums = members.map(m => monthSumsFor(m.vpNum));
+          const memberTotals = memberSums.map(totalOf);
+          const groupTotal = directTotal + memberTotals.reduce((a, s) => a + s, 0);
 
-          // Прямі надходження на сам номер ЗВП (їх ні до кого "приписати")
+          if (groupTotal === 0) {
+            // ЗВП без жодних надходжень
+            if (!allMode) continue;            // не показуємо порожні провадження
+            zvpShown.add(vp.zvp);
+            if (showZeroMembers) {
+              // кожен член — окремим нульовим рядком
+              for (const m of members) {
+                outputRows.push(mkRow(
+                  m.vpNum, 'член ЗВП', m.vd, m.stanVP, m.stanVD, m.dateOpen, m.amount, m.debtor, m.creditor,
+                  Array(12).fill(0), 0, 'У складі ЗВП ' + vp.zvp
+                ));
+              }
+            } else {
+              // один зведений нульовий рядок
+              const amountSum = members.reduce((a, m) => a + parseNum(m.amount), 0);
+              outputRows.push(mkRow(
+                vp.zvp, 'ЗВП', '—',
+                uniqJoin(members.map(m => m.stanVP), ' / '),
+                uniqJoin(members.map(m => m.stanVD), ' / '),
+                '', amountSum,
+                uniqJoin(members.map(m => m.debtor), ' / '),
+                uniqJoin(members.map(m => m.creditor), '; '),
+                Array(12).fill(0), 0,
+                members.map(m => m.vpNum).join(', ')
+              ));
+            }
+            continue;
+          }
+
+          // ЗВП із коштами: прямі надходження на номер ЗВП
           if (directTotal > 0) {
             matchedCount++;
             grandTotal += directTotal;
@@ -878,41 +947,20 @@ btnProcess.addEventListener('click', async () => {
               directSums, directTotal,
               'Склад: ' + members.map(m => m.vpNum).join(', ')
             ));
-            groupHasRow = true;
           }
-
-          // Лише члени з НЕнульовими надходженнями
-          for (const m of members) {
-            const ms = monthSumsFor(m.vpNum);
-            const mt = totalOf(ms);
-            if (mt === 0) continue;            // нульові члени пропускаємо завжди
-            matchedCount++;
+          // члени: з коштами — завжди; нульові — лише за showZeroMembers
+          members.forEach((m, idx) => {
+            const ms = memberSums[idx];
+            const mt = memberTotals[idx];
+            if (mt === 0 && !showZeroMembers) return;
+            if (mt > 0) matchedCount++;
             grandTotal += mt;
             zvpShown.add(vp.zvp);
             outputRows.push(mkRow(
               m.vpNum, 'член ЗВП', m.vd, m.stanVP, m.stanVD, m.dateOpen, m.amount, m.debtor, m.creditor,
               ms, mt, 'У складі ЗВП ' + vp.zvp
             ));
-            groupHasRow = true;
-          }
-
-          // ЗВП зовсім без надходжень: при "Усі ВП" — ОДИН зведений нульовий
-          // рядок (а не купа нульових членів); інакше пропускаємо групу
-          if (!groupHasRow) {
-            if (!allMode) continue;
-            zvpShown.add(vp.zvp);
-            const amountSum = members.reduce((a, m) => a + parseNum(m.amount), 0);
-            outputRows.push(mkRow(
-              vp.zvp, 'ЗВП', '—',
-              uniqJoin(members.map(m => m.stanVP), ' / '),
-              uniqJoin(members.map(m => m.stanVD), ' / '),
-              '', amountSum,
-              uniqJoin(members.map(m => m.debtor), ' / '),
-              uniqJoin(members.map(m => m.creditor), '; '),
-              Array(12).fill(0), 0,
-              members.map(m => m.vpNum).join(', ')
-            ));
-          }
+          });
         } else {
           /* ── ЗГОРНУТО: одне ЗВП = один рядок ── */
           const monthSums = monthSumsFor(vp.zvp);
