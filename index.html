@@ -185,7 +185,7 @@ footer strong{font-weight:700;letter-spacing:1px}
         <div class="title">Рік звіту</div>
         <div class="desc">Відображатиметься у назві вихідного файлу</div>
       </div>
-      <input type="number" id="year-input" class="year-input" value="2025" min="2000" max="2099">
+      <input type="number" id="year-input" class="year-input" value="2026" min="2000" max="2099">
     </div>
   </div>
 
@@ -548,6 +548,9 @@ function updateProcessBtn() {
 
 buildMonthGrid();
 
+// Дефолтний звітний рік — поточний (щоб не застрягав на захардкодженому минулому)
+$('year-input').value = new Date().getFullYear();
+
 /* ──────────────────── Toggle ──────────────────── */
 toggleAll.addEventListener('change', () => {
   toggleAllText.textContent = toggleAll.checked
@@ -852,10 +855,15 @@ btnProcess.addEventListener('click', async () => {
         const members = zvpToMembers.get(vp.zvp);
 
         if (expandZvp) {
-          /* ── РОЗГОРНУТО: члени окремо + рядок прямих надходжень на ЗВП ── */
-          // Прямі надходження на сам номер ЗВП (їх ні до кого "приписати")
+          /* ── РОЗГОРНУТО: рядок прямих надходжень на ЗВП + лише ті члени,
+             що реально отримали кошти. Нульові члени НЕ виводимо — кошти
+             зведеного вже відображені рядком "ЗВП (пряме)" або на конкретних
+             членах, а пачка нульових членів лише засмічує звіт. */
           const directSums = monthSumsFor(vp.zvp);
           const directTotal = totalOf(directSums);
+          let groupHasRow = false;
+
+          // Прямі надходження на сам номер ЗВП (їх ні до кого "приписати")
           if (directTotal > 0) {
             matchedCount++;
             grandTotal += directTotal;
@@ -870,18 +878,39 @@ btnProcess.addEventListener('click', async () => {
               directSums, directTotal,
               'Склад: ' + members.map(m => m.vpNum).join(', ')
             ));
+            groupHasRow = true;
           }
-          // Кожен член — окремим рядком
+
+          // Лише члени з НЕнульовими надходженнями
           for (const m of members) {
             const ms = monthSumsFor(m.vpNum);
             const mt = totalOf(ms);
-            if (mt === 0 && !allMode) continue;
-            if (mt > 0) matchedCount++;
+            if (mt === 0) continue;            // нульові члени пропускаємо завжди
+            matchedCount++;
             grandTotal += mt;
             zvpShown.add(vp.zvp);
             outputRows.push(mkRow(
               m.vpNum, 'член ЗВП', m.vd, m.stanVP, m.stanVD, m.dateOpen, m.amount, m.debtor, m.creditor,
               ms, mt, 'У складі ЗВП ' + vp.zvp
+            ));
+            groupHasRow = true;
+          }
+
+          // ЗВП зовсім без надходжень: при "Усі ВП" — ОДИН зведений нульовий
+          // рядок (а не купа нульових членів); інакше пропускаємо групу
+          if (!groupHasRow) {
+            if (!allMode) continue;
+            zvpShown.add(vp.zvp);
+            const amountSum = members.reduce((a, m) => a + parseNum(m.amount), 0);
+            outputRows.push(mkRow(
+              vp.zvp, 'ЗВП', '—',
+              uniqJoin(members.map(m => m.stanVP), ' / '),
+              uniqJoin(members.map(m => m.stanVD), ' / '),
+              '', amountSum,
+              uniqJoin(members.map(m => m.debtor), ' / '),
+              uniqJoin(members.map(m => m.creditor), '; '),
+              Array(12).fill(0), 0,
+              members.map(m => m.vpNum).join(', ')
             ));
           }
         } else {
